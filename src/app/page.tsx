@@ -2,12 +2,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Navbar from "./components/Navbar";
+import Navbar from "../components/Navbar";
 import axios from "axios";
 import { format, parseISO } from "date-fns";
-import Container from "./components/Container";
+import Container from "../components/Container";
 import { convertKelvinToFahrenheit } from "@/utils/convertKelvinToFahrenheit";
-import WeatherIcon from "./components/WeatherIcon";
+import WeatherIcon from "../components/WeatherIcon";
 import { getDayOrNightIcon } from "@/utils/getDayOrNightIcon";
 
 
@@ -164,11 +164,13 @@ export default function Home() {
                 ))}
               </div>
             </Container>
- 
           </div>
         </section>
+
         {/* 5 day forcast data */}
-        <section></section>
+        <section className="flex w-full flex-col gap-4">
+          <p className="text-2xl">Forcast (5 days)</p>
+        </section>
       </main>
     </div>
   );
