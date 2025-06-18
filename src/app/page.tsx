@@ -9,6 +9,9 @@ import Container from "../components/Container";
 import { convertKelvinToFahrenheit } from "@/utils/convertKelvinToFahrenheit";
 import WeatherIcon from "../components/WeatherIcon";
 import { getDayOrNightIcon } from "@/utils/getDayOrNightIcon";
+import WeatherDetails from "@/components/WeatherDetails";
+import { metersToMiles } from "@/utils/metersToMiles";
+import { convertWindSpeed } from "@/utils/convertWindSpeed";
 
 
 // https://api.openweathermap.org/data/2.5/forecast?q={location}&appid={API_KEY} - f0rcast by location
@@ -163,6 +166,30 @@ export default function Home() {
                   </div>
                 ))}
               </div>
+            </Container>
+          </div>
+          <div className="flex gap-4">
+            {/* left */}
+            <Container className="w-fit justify-center flex-col px-4 items-center">
+              <p>{firstData?.weather[0].description}</p>
+              <WeatherIcon
+                iconName={getDayOrNightIcon(
+                  firstData?.weather[0].icon ?? "",
+                  firstData?.dt_txt ?? ""
+                )} 
+              />
+            </Container>
+
+            {/* right */}
+            <Container className="bg-yellow-300/80 px-6 gap-4 justify-between overflow-x-auto">
+               <WeatherDetails 
+                  visability={metersToMiles(firstData?.visibility ?? 10000)}
+                  humidity={`${firstData?.main.humidity ?? 0}%`}
+                  windSpeed={convertWindSpeed(firstData?.wind.speed ?? 0)}
+                  airPressure={`${firstData?.main.pressure ?? 0} hPa`}
+                  sunrise={format(new Date((data?.city.sunrise ?? 0) * 1000), 'H:mm a')}
+                  sunset={format(new Date((data?.city.sunset ?? 0) * 1000), 'H:mm a')}
+                />
             </Container>
           </div>
         </section>

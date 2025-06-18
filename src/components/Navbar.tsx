@@ -20,8 +20,8 @@ export default function Navbar({}: Props) {
           <MdOutlineLocationOn className="text-3xl" />
           <p className="text-slate-900/80 text-sm">Brooklyn</p>
           <div>
-            {/* SearchBox */}
-            <SearchBox value={''} onChange={undefined} onSubmit={undefined} />
+            {/* SearchBox - TODO: implement handlers*/}
+            {/* <SearchBox value={''} onChange={undefined} onSubmit={undefined} /> */}
           </div>
         </section>
       </div>
