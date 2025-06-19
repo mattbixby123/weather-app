@@ -2,6 +2,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useAtom } from "jotai";
+import { loadingCityAtom, placeAtom } from "@/app/atom";
 import Navbar from "../components/Navbar";
 import axios from "axios";
 import { format, parseISO } from "date-fns";
@@ -12,7 +14,7 @@ import { getDayOrNightIcon } from "@/utils/getDayOrNightIcon";
 import WeatherDetails from "@/components/WeatherDetails";
 import { metersToMiles } from "@/utils/metersToMiles";
 import { convertWindSpeed } from "@/utils/convertWindSpeed";
-
+import ForecastWeatherDetail from "@/components/ForcastWeatherDetail";
 
 // https://api.openweathermap.org/data/2.5/forecast?q={location}&appid={API_KEY} - f0rcast by location
 
@@ -74,11 +76,14 @@ interface WeatherData {
 }
 
 export default function Home() {
+  const [place] = useAtom(placeAtom);
+  const [loadingCity] = useAtom(loadingCityAtom);
+
   const { isLoading, error, data, refetch } = useQuery<WeatherData>({
-    queryKey: ['repoData'],
+    queryKey: ['weatherData', place],
     queryFn: async () => {
       const { data } = await axios.get(
-        `https://api.openweathermap.org/data/2.5/forecast?q=Brooklyn&appid=${process.env.NEXT_PUBLIC_WEATHER_KEY}`
+        `https://api.openweathermap.org/data/2.5/forecast?q=${place || 'Brooklyn'}&appid=${process.env.NEXT_PUBLIC_WEATHER_KEY}`
       );
       return data;
     }
@@ -86,7 +91,21 @@ export default function Home() {
 
   const firstData = data?.list[0];
 
-  console.log("client response", data?.list.map(item => item.dt_txt));
+  const uniqueDates = [
+    ...new Set(
+      data?.list.map(
+        (entry) => new Date(entry.dt * 1000).toISOString().split("T")[0]
+      )
+    )
+  ];
+
+  const firstDataForEachDate = uniqueDates.map((date) => {
+    return data?.list.find((entry) => {
+      const entryDate = new Date(entry.dt * 1000).toISOString().split("T")[0];
+      const entryTime = new Date(entry.dt * 1000).getHours();
+      return entryDate === date && entryTime >= 6;
+    });
+  });
 
   if (isLoading)
     return (
@@ -94,6 +113,7 @@ export default function Home() {
         <p className="animate-bounce">Loading...</p>
       </div>
     );
+  
   if (error)
     return (
       <div className="flex items-center min-h-screen justify-center">
@@ -104,101 +124,172 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-4 bg-gray-100 min-h-screen">
-      <Navbar />
+      <Navbar location={data?.city.name} />
       <main className="px-3 max-w-7xl mx-auto flex flex-col gap-9 w-full pb-10 pt-4">
 
         {/* today's data */}
-        <section className="space-y-4">
-          <div className="space-y-2">
+        {loadingCity ? (
+          <WeatherSkeleton />
+        ) : (
+          <>
+            <section className="space-y-4">
+              <div className="space-y-2">
+                {/* day of week and date */}
+                <h2 className="flex gap-1 text-2xl items-end">
+                  <p>{format(parseISO(firstData?.dt_txt ?? ''), 'EEEE')}</p>
+                  <p className="text-lg">({format(parseISO(firstData?.dt_txt ?? ''), 'dd.MM.yyy')})</p>
+                </h2>
 
-            {/* day of week and date */}
-            <h2 className="flex gap-1 text-2xl items-end">
-              <p>{format(parseISO(firstData?.dt_txt ?? ''), 'EEEE')}</p>
-              <p className="text-lg">({format(parseISO(firstData?.dt_txt ?? ''), 'dd.MM.yyy')})</p>
-            </h2>
-
-            {/* first container */}
-            <Container className="gap-10 px-6 items-center">
-              {/* left half with temp / feels like / high /low */}
-              <div className="flex flex-col px-4">
-                <span className="text-5xl">
-                  {convertKelvinToFahrenheit(firstData?.main.temp ?? 70)}°
-                </span>
-                <p className="text-xs space-x-1 whitespace-nowrap">
-                  <span>Feels like</span>
-                  <span>
-                    {convertKelvinToFahrenheit(firstData?.main.feels_like ?? 0)}°
-                  </span>
-                </p>
-                <p className="text-xs space-x-2">
-                  <span>
-                    {convertKelvinToFahrenheit(firstData?.main.temp_min ?? 0)}
-                    °↓{" "}
-                  </span>
-                  <span>
-                    {" "}
-                    {convertKelvinToFahrenheit(firstData?.main.temp_max ?? 0)}
-                    °↑
-                  </span>
-                </p>
-              </div>
-
-              {/* right half with 3 hour weather cycle  */} {/* time and weather icon*/}
-              <div className="flex gap-10 sm:gap-16 overflow-x-auto w-full justify-between pr-3">
-
-                {data?.list.map((d, i) => (
-                  <div
-                    key={i}
-                    className="flex flex-col justify-between gap-2 items-center text-xs font-semibold "
-                  >
-                    <p className="whitespace-nowrap">
-                      {format(parseISO(d.dt_txt), "h:mm a")}
+                {/* first container */}
+                <Container className="gap-10 px-6 items-center">
+                  {/* left half with temp / feels like / high /low */}
+                  <div className="flex flex-col px-4">
+                    <span className="text-5xl">
+                      {convertKelvinToFahrenheit(firstData?.main.temp ?? 70)}°
+                    </span>
+                    <p className="text-xs space-x-1 whitespace-nowrap">
+                      <span>Feels like</span>
+                      <span>
+                        {convertKelvinToFahrenheit(firstData?.main.feels_like ?? 0)}°
+                      </span>
                     </p>
-
-                    {/* <WeatherIcon iconName={d.weather[0].icon} /> */}
-                    <WeatherIcon
-                      iconName={getDayOrNightIcon(
-                        d.weather[0].icon,
-                        d.dt_txt
-                      )}
-                    />
-                    <p>{convertKelvinToFahrenheit(d?.main.temp ?? 0)}°</p>
+                    <p className="text-xs space-x-2">
+                      <span>
+                        {convertKelvinToFahrenheit(firstData?.main.temp_min ?? 0)}
+                        °↓{" "}
+                      </span>
+                      <span>
+                        {" "}
+                        {convertKelvinToFahrenheit(firstData?.main.temp_max ?? 0)}
+                        °↑
+                      </span>
+                    </p>
                   </div>
-                ))}
+
+                  {/* right half with 3 hour weather cycle */}
+                  <div className="flex gap-10 sm:gap-16 overflow-x-auto w-full justify-between pr-3">
+                    {data?.list.map((d, i) => (
+                      <div
+                        key={i}
+                        className="flex flex-col justify-between gap-2 items-center text-xs font-semibold "
+                      >
+                        <p className="whitespace-nowrap">
+                          {format(parseISO(d.dt_txt), "h:mm a")}
+                        </p>
+
+                        <WeatherIcon
+                          iconName={getDayOrNightIcon(
+                            d.weather[0].icon,
+                            d.dt_txt
+                          )}
+                        />
+                        <p>{convertKelvinToFahrenheit(d?.main.temp ?? 0)}°</p>
+                      </div>
+                    ))}
+                  </div>
+                </Container>
               </div>
-            </Container>
-          </div>
-          <div className="flex gap-4">
-            {/* left */}
-            <Container className="w-fit justify-center flex-col px-4 items-center">
-              <p>{firstData?.weather[0].description}</p>
-              <WeatherIcon
-                iconName={getDayOrNightIcon(
-                  firstData?.weather[0].icon ?? "",
-                  firstData?.dt_txt ?? ""
-                )} 
-              />
-            </Container>
+              
+              <div className="flex gap-4">
+                {/* left */}
+                <Container className="w-fit justify-center flex-col px-4 items-center">
+                  <p>{firstData?.weather[0].description}</p>
+                  <WeatherIcon
+                    iconName={getDayOrNightIcon(
+                      firstData?.weather[0].icon ?? "",
+                      firstData?.dt_txt ?? ""
+                    )} 
+                  />
+                </Container>
 
-            {/* right */}
-            <Container className="bg-yellow-300/80 px-6 gap-4 justify-between overflow-x-auto">
-               <WeatherDetails 
-                  visability={metersToMiles(firstData?.visibility ?? 10000)}
-                  humidity={`${firstData?.main.humidity ?? 0}%`}
-                  windSpeed={convertWindSpeed(firstData?.wind.speed ?? 0)}
-                  airPressure={`${firstData?.main.pressure ?? 0} hPa`}
-                  sunrise={format(new Date((data?.city.sunrise ?? 0) * 1000), 'H:mm a')}
-                  sunset={format(new Date((data?.city.sunset ?? 0) * 1000), 'H:mm a')}
+                {/* right */}
+                <Container className="bg-yellow-300/80 px-6 gap-4 justify-between overflow-x-auto">
+                   <WeatherDetails 
+                      visability={metersToMiles(firstData?.visibility ?? 10000)}
+                      humidity={`${firstData?.main.humidity ?? 0}%`}
+                      windSpeed={convertWindSpeed(firstData?.wind.speed ?? 0)}
+                      airPressure={`${firstData?.main.pressure ?? 0} hPa`}
+                      sunrise={format(new Date((data?.city.sunrise ?? 0) * 1000), 'h:mm a')}
+                      sunset={format(new Date((data?.city.sunset ?? 0) * 1000), 'h:mm a')}
+                    />
+                </Container>
+              </div>
+            </section>
+
+            {/* 5 day forecast data */}
+            <section className="flex w-full flex-col gap-4">
+              <p className="text-2xl">Forecast (5 days)</p>
+              {firstDataForEachDate.map((d, i) => (
+                <ForecastWeatherDetail 
+                  key={i} 
+                  description={d?.weather[0].description ?? ""}
+                  weatehrIcon={d?.weather[0].icon ?? "01d"}
+                  date={d ? format(parseISO(d.dt_txt), "MM.dd") : ""}
+                  day={d ? format(parseISO(d.dt_txt), "EEEE") : ""}
+                  feels_like={d?.main.feels_like ?? 0}
+                  temp={d?.main.temp ?? 0}
+                  temp_max={d?.main.temp_max ?? 0}
+                  temp_min={d?.main.temp_min ?? 0}
+                  airPressure={`${d?.main.pressure ?? 0} hPa`}
+                  humidity={`${d?.main.humidity ?? 0}%`}
+                  sunrise={format(
+                    new Date((data?.city.sunrise ?? 1702517657) * 1000),
+                    "h:mm a"
+                  )}
+                  sunset={format(
+                    new Date((data?.city.sunset ?? 1702517657) * 1000),
+                    "h:mm a"
+                  )}
+                  visability={`${metersToMiles(d?.visibility ?? 10000)}`}
+                  windSpeed={`${convertWindSpeed(d?.wind.speed ?? 1.64)}`}
                 />
-            </Container>
-          </div>
-        </section>
+              ))}     
+            </section>
+          </>
+        )}
 
-        {/* 5 day forcast data */}
-        <section className="flex w-full flex-col gap-4">
-          <p className="text-2xl">Forcast (5 days)</p>
-        </section>
       </main>
     </div>
   );
-};
+}
+
+// WeatherSkeleton function OUTSIDE the Home component
+function WeatherSkeleton() {
+  return (
+    <section className="space-y-8 ">
+      {/* Today's data skeleton */}
+      <div className="space-y-2 animate-pulse">
+        {/* Date skeleton */}
+        <div className="flex gap-1 text-2xl items-end ">
+          <div className="h-6 w-24 bg-gray-300 rounded"></div>
+          <div className="h-6 w-24 bg-gray-300 rounded"></div>
+        </div>
+
+        {/* Time wise temperature skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((index) => (
+            <div key={index} className="flex flex-col items-center space-y-2">
+              <div className="h-6 w-16 bg-gray-300 rounded"></div>
+              <div className="h-6 w-6 bg-gray-300 rounded-full"></div>
+              <div className="h-6 w-16 bg-gray-300 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 5 days forecast skeleton */}
+      <div className="flex flex-col gap-4 animate-pulse">
+        <p className="text-2xl h-8 w-36 bg-gray-300 rounded"></p>
+
+        {[1, 2, 3, 4, 5].map((index) => (
+          <div key={index} className="grid grid-cols-2 md:grid-cols-4 gap-4 ">
+            <div className="h-8 w-28 bg-gray-300 rounded"></div>
+            <div className="h-10 w-10 bg-gray-300 rounded-full"></div>
+            <div className="h-8 w-28 bg-gray-300 rounded"></div>
+            <div className="h-8 w-28 bg-gray-300 rounded"></div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
