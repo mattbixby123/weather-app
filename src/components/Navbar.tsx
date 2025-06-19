@@ -8,10 +8,6 @@ import axios from 'axios';
 import { loadingCityAtom, placeAtom } from "@/app/atom";
 import { useAtom } from "jotai";
 
-type Props = { 
-  location?: string;
-};
-
 const API_KEY = process.env.NEXT_PUBLIC_WEATHER_KEY;
 
 export default function Navbar() {
@@ -21,7 +17,7 @@ export default function Navbar() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [place, setPlace] = useAtom(placeAtom);
-  const [loadingCity, setLoadingCity] = useAtom(loadingCityAtom);
+  const [, setLoadingCity] = useAtom(loadingCityAtom);
 
   async function handleInputChange(value: string) {
     setCity(value);
