@@ -14,14 +14,14 @@ type Props = {
 
 const API_KEY = process.env.NEXT_PUBLIC_WEATHER_KEY;
 
-export default function Navbar({ location }: Props) {
+export default function Navbar() {
   const [city, setCity] = useState("");
   const [error, setError] = useState("");
   //
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [place, setPlace] = useAtom(placeAtom);
-  const [_, setLoadingCity] = useAtom(loadingCityAtom);
+  const [loadingCity, setLoadingCity] = useAtom(loadingCityAtom);
 
   async function handleInputChange(value: string) {
     setCity(value);
@@ -31,11 +31,11 @@ export default function Navbar({ location }: Props) {
           `https://api.openweathermap.org/data/2.5/find?q=${value}&appid=${API_KEY}`
         );
 
-        const suggestions = response.data.list.map((item: any) => item.name);
+        const suggestions = response.data.list.map((item: { name: string }) => item.name);
         setSuggestions(suggestions);
         setError("");
         setShowSuggestions(true);
-      } catch (error) {
+      } catch {
         setSuggestions([]);
         setShowSuggestions(false);
       }
@@ -79,7 +79,7 @@ export default function Navbar({ location }: Props) {
             setLoadingCity(false);
             setPlace(response.data.name);
           }, 500);
-        } catch (error) {
+        } catch {
           setLoadingCity(false);
         }
       });
